@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="banner.png" width="65%" style="border-radius: 12px;" />
+  <img src="banner.png" width="40%" style="border-radius: 12px;" />
 </p>
 
 <p align="center">
@@ -15,7 +15,7 @@
 
 ---
 
-## ⌨️ Overview
+##  Overview
 
 **Type Speed Test** recreates the feel of popular typing benchmarks, but in a simple and distraction-free way.
 It helps you measure your **WPM**, **accuracy**, and overall typing performance through a smooth real-time test.
@@ -53,4 +53,3 @@ This version focuses on:
 | UI Components | shadcn/ui    |
 
 ---
-
