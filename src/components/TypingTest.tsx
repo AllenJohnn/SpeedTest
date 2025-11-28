@@ -106,6 +106,7 @@ export const TypingTest = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
+  // timer
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
 
@@ -124,6 +125,7 @@ export const TypingTest = () => {
     };
   }, [isActive, timeLeft, isFinished]);
 
+  // scroll current word into view
   useEffect(() => {
     if (wordRefs.current[currentWordIndex]) {
       wordRefs.current[currentWordIndex]?.scrollIntoView({
@@ -133,6 +135,7 @@ export const TypingTest = () => {
     }
   }, [currentWordIndex]);
 
+  // shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Tab") {
@@ -161,53 +164,41 @@ export const TypingTest = () => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
+    const value = e.target.value;
 
-  if (isFinished || timeLeft === 0) {
-    // Just in case, ignore typing after test is finished
-    return;
-  }
-
-  if (!isActive && value.length > 0) {
-    setIsActive(true);
-  }
-
-  // When the user completes a word (presses space)
-  if (value.endsWith(" ")) {
-    const typedWord = value.trim();
-
-    setTypedWords((prev) => [...prev, typedWord]);
-
-    if (typedWord === words[currentWordIndex]) {
-      setCombo((prev) => {
-        const newCombo = prev + 1;
-        setMaxCombo((max) => Math.max(max, newCombo));
-        return newCombo;
-      });
-    } else {
-      setCombo(0);
-    }
-
-    const nextIndex = currentWordIndex + 1;
-
-    // If this was the last word, end the test
-    if (nextIndex >= words.length) {
-      setUserInput("");
-      setCurrentWordIndex(words.length - 1);
-      setIsActive(false);
-      setIsFinished(true);
-      calculateStats();
+    if (isFinished || timeLeft <= 0) {
+      // Ignore extra typing after test is done
       return;
     }
 
-    // Otherwise move to the next word
-    setCurrentWordIndex(nextIndex);
-    setUserInput("");
-  } else {
-    setUserInput(value);
-  }
-};
+    if (!isActive && value.length > 0) {
+      setIsActive(true);
+    }
 
+    // user completed a word (space)
+    if (value.endsWith(" ")) {
+      const typedWord = value.trim();
+
+      if (typedWord.length > 0) {
+        setTypedWords((prev) => [...prev, typedWord]);
+      }
+
+      if (typedWord === words[currentWordIndex]) {
+        setCombo((prev) => {
+          const newCombo = prev + 1;
+          setMaxCombo((max) => Math.max(max, newCombo));
+          return newCombo;
+        });
+      } else {
+        setCombo(0);
+      }
+
+      setCurrentWordIndex((prev) => Math.min(prev + 1, words.length - 1));
+      setUserInput("");
+    } else {
+      setUserInput(value);
+    }
+  };
 
   const restart = () => {
     setWords(generateWords());
@@ -371,7 +362,7 @@ export const TypingTest = () => {
                   type="text"
                   value={userInput}
                   onChange={handleInputChange}
-                  disabled={isFinished || timeLeft === 0}
+                  disabled={isFinished || timeLeft <= 0}
                   className="absolute inset-0 opacity-0 cursor-default"
                   autoFocus
                   autoComplete="off"
