@@ -161,34 +161,53 @@ export const TypingTest = () => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const value = e.target.value;
 
-    if (!isActive && value.length > 0) {
-      setIsActive(true);
-    }
+  if (isFinished || timeLeft === 0) {
+    // Just in case, ignore typing after test is finished
+    return;
+  }
 
-    // completed a word
-    if (value.endsWith(" ")) {
-      const typedWord = value.trim();
+  if (!isActive && value.length > 0) {
+    setIsActive(true);
+  }
 
-      setTypedWords((prev) => [...prev, typedWord]);
+  // When the user completes a word (presses space)
+  if (value.endsWith(" ")) {
+    const typedWord = value.trim();
 
-      if (typedWord === words[currentWordIndex]) {
-        setCombo((prev) => {
-          const newCombo = prev + 1;
-          setMaxCombo((max) => Math.max(max, newCombo));
-          return newCombo;
-        });
-      } else {
-        setCombo(0);
-      }
+    setTypedWords((prev) => [...prev, typedWord]);
 
-      setCurrentWordIndex((prev) => Math.min(prev + 1, words.length - 1));
-      setUserInput("");
+    if (typedWord === words[currentWordIndex]) {
+      setCombo((prev) => {
+        const newCombo = prev + 1;
+        setMaxCombo((max) => Math.max(max, newCombo));
+        return newCombo;
+      });
     } else {
-      setUserInput(value);
+      setCombo(0);
     }
-  };
+
+    const nextIndex = currentWordIndex + 1;
+
+    // If this was the last word, end the test
+    if (nextIndex >= words.length) {
+      setUserInput("");
+      setCurrentWordIndex(words.length - 1);
+      setIsActive(false);
+      setIsFinished(true);
+      calculateStats();
+      return;
+    }
+
+    // Otherwise move to the next word
+    setCurrentWordIndex(nextIndex);
+    setUserInput("");
+  } else {
+    setUserInput(value);
+  }
+};
+
 
   const restart = () => {
     setWords(generateWords());
