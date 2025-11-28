@@ -16,7 +16,7 @@ const WORD_BANK = [
   "even", "new", "want", "because", "any", "these", "give", "day", "most", "us"
 ];
 
-const TEST_DURATION = 60;
+const TEST_DURATION = 60; // seconds
 const WORDS_COUNT = 60;
 
 const generateWords = () => {
@@ -36,6 +36,54 @@ const getGrade = (wpm: number, accuracy: number): string => {
   return "D";
 };
 
+const computeStats = (
+  words: string[],
+  typedWordList: string[],
+  timeElapsedSeconds: number
+) => {
+  let correctWords = 0;
+  let totalChars = 0;
+  let correctChars = 0;
+
+  typedWordList.forEach((word, index) => {
+    const target = words[index];
+    if (!target) return;
+
+    totalChars += word.length;
+
+    if (word === target) {
+      correctWords++;
+      correctChars += word.length;
+    } else {
+      const limit = Math.min(word.length, target.length);
+      for (let i = 0; i < limit; i++) {
+        if (word[i] === target[i]) {
+          correctChars++;
+        }
+      }
+    }
+  });
+
+  const incorrectWords = typedWordList.length - correctWords;
+  const accuracyRaw = totalChars > 0 ? (correctChars / totalChars) * 100 : 0;
+  const accuracy = Math.round(accuracyRaw);
+
+  const timeMinutes =
+    timeElapsedSeconds > 0 ? timeElapsedSeconds / 60 : 1 / 60;
+
+  const wpm =
+    totalChars > 0 ? Math.round((correctChars / 5) / timeMinutes) : 0;
+
+  const grade = getGrade(wpm, accuracyRaw);
+
+  return {
+    wpm,
+    accuracy,
+    correctWords,
+    incorrectWords,
+    grade,
+  };
+};
 
 export const TypingTest = () => {
   const [words, setWords] = useState<string[]>(generateWords());
@@ -54,7 +102,7 @@ export const TypingTest = () => {
     incorrectWords: 0,
     grade: "D",
   });
-  
+
   const inputRef = useRef<HTMLInputElement>(null);
   const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
@@ -65,7 +113,7 @@ export const TypingTest = () => {
       interval = setInterval(() => {
         setTimeLeft((time) => time - 1);
       }, 1000);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && !isFinished) {
       setIsActive(false);
       setIsFinished(true);
       calculateStats();
@@ -74,10 +122,9 @@ export const TypingTest = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, timeLeft]);
+  }, [isActive, timeLeft, isFinished]);
 
   useEffect(() => {
-    // Scroll to current word
     if (wordRefs.current[currentWordIndex]) {
       wordRefs.current[currentWordIndex]?.scrollIntoView({
         behavior: "smooth",
@@ -87,7 +134,6 @@ export const TypingTest = () => {
   }, [currentWordIndex]);
 
   useEffect(() => {
-    // Handle keyboard shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Tab") {
         e.preventDefault();
@@ -103,66 +149,40 @@ export const TypingTest = () => {
   }, []);
 
   const calculateStats = () => {
-    const typedWords = userInput.trim().split(/\s+/);
-    let correctWords = 0;
-    let totalChars = 0;
-    let correctChars = 0;
+    const allTypedWords = [...typedWords, userInput.trim()].filter(
+      (w) => w.length > 0
+    );
 
-    typedWords.forEach((word, index) => {
-      if (words[index]) {
-        totalChars += word.length;
-        if (word === words[index]) {
-          correctWords++;
-          correctChars += word.length;
-        } else {
-          // Count correct characters in incorrect words
-          for (let i = 0; i < Math.min(word.length, words[index].length); i++) {
-            if (word[i] === words[index][i]) {
-              correctChars++;
-            }
-          }
-        }
-      }
-    });
+    const timeElapsed = TEST_DURATION - timeLeft || 1;
 
-    const incorrectWords = typedWords.length - correctWords;
-    const accuracy = totalChars > 0 ? (correctChars / totalChars) * 100 : 0;
-    const timeElapsed = TEST_DURATION - timeLeft;
-    const wpm = Math.round((correctChars / 5) / (timeElapsed / 60));
-    const grade = getGrade(wpm, accuracy);
+    const newStats = computeStats(words, allTypedWords, timeElapsed);
 
-    setStats({
-      wpm,
-      accuracy: Math.round(accuracy),
-      correctWords,
-      incorrectWords,
-      grade,
-    });
+    setStats(newStats);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    
+
     if (!isActive && value.length > 0) {
       setIsActive(true);
     }
 
-    // Check if user completed a word (pressed space)
+    // completed a word
     if (value.endsWith(" ")) {
       const typedWord = value.trim();
-      setTypedWords(prev => [...prev, typedWord]);
-      
+
+      setTypedWords((prev) => [...prev, typedWord]);
+
       if (typedWord === words[currentWordIndex]) {
-        setStats(prev => ({ ...prev, correctWords: prev.correctWords + 1 }));
-        setCombo(prev => {
+        setCombo((prev) => {
           const newCombo = prev + 1;
-          setMaxCombo(max => Math.max(max, newCombo));
+          setMaxCombo((max) => Math.max(max, newCombo));
           return newCombo;
         });
       } else {
-        setStats(prev => ({ ...prev, incorrectWords: prev.incorrectWords + 1 }));
         setCombo(0);
       }
+
       setCurrentWordIndex((prev) => Math.min(prev + 1, words.length - 1));
       setUserInput("");
     } else {
@@ -191,69 +211,94 @@ export const TypingTest = () => {
     inputRef.current?.focus();
   };
 
-  const getCharStatus = (wordIndex: number, charIndex: number): "correct" | "incorrect" | "current" | "pending" => {
+  const getCharStatus = (
+    wordIndex: number,
+    charIndex: number
+  ): "correct" | "incorrect" | "current" | "pending" => {
     if (wordIndex > currentWordIndex) return "pending";
     if (wordIndex < currentWordIndex) {
       const typedWord = typedWords[wordIndex] || "";
       if (charIndex < typedWord.length) {
-        return typedWord[charIndex] === words[wordIndex][charIndex] ? "correct" : "incorrect";
+        return typedWord[charIndex] === words[wordIndex][charIndex]
+          ? "correct"
+          : "incorrect";
       }
       return charIndex < words[wordIndex].length ? "incorrect" : "pending";
     }
-    
-    // Current word
+
+    // current word
     if (wordIndex === currentWordIndex) {
       if (charIndex < userInput.length) {
-        return userInput[charIndex] === words[wordIndex][charIndex] ? "correct" : "incorrect";
+        return userInput[charIndex] === words[wordIndex][charIndex]
+          ? "correct"
+          : "incorrect";
       }
       if (charIndex === userInput.length) return "current";
     }
-    
+
     return "pending";
   };
 
-  const currentWpm = isActive && userInput.length > 0
-    ? Math.round((userInput.trim().split(/\s+/).filter((word, i) => word === words[i]).length * 5) / ((TEST_DURATION - timeLeft) / 60) / 5)
-    : 0;
+  const currentWpm = (() => {
+    const timeElapsed = TEST_DURATION - timeLeft;
+
+    if (!isActive || timeElapsed <= 0) return 0;
+
+    const allTypedWords = [...typedWords, userInput.trim()].filter(
+      (w) => w.length > 0
+    );
+
+    if (allTypedWords.length === 0) return 0;
+
+    const { wpm } = computeStats(words, allTypedWords, timeElapsed);
+    return wpm;
+  })();
 
   const progressPercentage = ((TEST_DURATION - timeLeft) / TEST_DURATION) * 100;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background font-sans">
       <div className="w-full max-w-5xl space-y-6">
-
         {!isFinished ? (
           <>
             {/* Stats Bar */}
             <Card className="p-6 bg-card border">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Time</p>
-                  <p className="text-3xl font-semibold text-foreground">{timeLeft}s</p>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                    Time
+                  </p>
+                  <p className="text-3xl font-semibold text-foreground">
+                    {timeLeft}s
+                  </p>
                   <div className="h-1 bg-muted rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-foreground transition-all duration-1000"
                       style={{ width: `${progressPercentage}%` }}
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">WPM</p>
-                  <p className="text-3xl font-semibold text-foreground">{currentWpm}</p>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                    WPM
+                  </p>
+                  <p className="text-3xl font-semibold text-foreground">
+                    {currentWpm}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Words</p>
-                  <p className="text-3xl font-semibold text-foreground">{currentWordIndex}</p>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                    Words
+                  </p>
+                  <p className="text-3xl font-semibold text-foreground">
+                    {currentWordIndex}
+                  </p>
                 </div>
 
                 <div className="flex items-center justify-center md:justify-end">
-                  <Button
-                    variant="outline"
-                    size="default"
-                    onClick={restart}
-                  >
+                  <Button variant="outline" size="default" onClick={restart}>
                     <RotateCcw className="mr-2 h-4 w-4" />
                     Restart
                   </Button>
@@ -264,7 +309,7 @@ export const TypingTest = () => {
             {/* Typing Area */}
             <Card className="p-8 bg-card border">
               <div className="relative">
-                <div 
+                <div
                   className="text-xl leading-relaxed font-mono min-h-[240px] max-h-[240px] overflow-y-auto select-none focus-within:ring-2 focus-within:ring-foreground/20 rounded p-6 bg-muted/50 cursor-text"
                   onClick={() => inputRef.current?.focus()}
                 >
@@ -274,10 +319,10 @@ export const TypingTest = () => {
                       ref={(el) => (wordRefs.current[wordIndex] = el)}
                       className="inline-block mx-1"
                     >
-                      {word.split('').map((char, charIndex) => {
+                      {word.split("").map((char, charIndex) => {
                         const status = getCharStatus(wordIndex, charIndex);
                         let className = "transition-colors ";
-                        
+
                         switch (status) {
                           case "correct":
                             className += "text-success";
@@ -326,40 +371,58 @@ export const TypingTest = () => {
           <Card className="p-10 bg-card border">
             <div className="text-center space-y-8">
               <div className="space-y-4">
-                <h2 className="text-3xl font-semibold text-foreground">Test Complete</h2>
+                <h2 className="text-3xl font-semibold text-foreground">
+                  Test Complete
+                </h2>
                 <div className="inline-block">
-                  <div className="text-6xl font-bold mb-2 text-foreground">{stats.grade}</div>
-                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Grade</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
-                <div className="p-6 bg-muted border rounded">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">WPM</p>
-                  <p className="text-4xl font-semibold text-foreground">{stats.wpm}</p>
-                </div>
-                
-                <div className="p-6 bg-muted border rounded">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Accuracy</p>
-                  <p className="text-4xl font-semibold text-foreground">{stats.accuracy}%</p>
-                </div>
-                
-                <div className="p-6 bg-muted border rounded">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Correct</p>
-                  <p className="text-4xl font-semibold text-success">{stats.correctWords}</p>
-                </div>
-                
-                <div className="p-6 bg-muted border rounded">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Errors</p>
-                  <p className="text-4xl font-semibold text-destructive">{stats.incorrectWords}</p>
+                  <div className="text-6xl font-bold mb-2 text-foreground">
+                    {stats.grade}
+                  </div>
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider">
+                    Grade
+                  </p>
                 </div>
               </div>
 
-              <Button
-                onClick={restart}
-                size="default"
-                variant="outline"
-              >
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
+                <div className="p-6 bg-muted border rounded">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                    WPM
+                  </p>
+                  <p className="text-4xl font-semibold text-foreground">
+                    {stats.wpm}
+                  </p>
+                </div>
+
+                <div className="p-6 bg-muted border rounded">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                    Accuracy
+                  </p>
+                  <p className="text-4xl font-semibold text-foreground">
+                    {stats.accuracy}%
+                  </p>
+                </div>
+
+                <div className="p-6 bg-muted border rounded">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                    Correct
+                  </p>
+                  <p className="text-4xl font-semibold text-success">
+                    {stats.correctWords}
+                  </p>
+                </div>
+
+                <div className="p-6 bg-muted border rounded">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                    Errors
+                  </p>
+                  <p className="text-4xl font-semibold text-destructive">
+                    {stats.incorrectWords}
+                  </p>
+                </div>
+              </div>
+
+              <Button onClick={restart} size="default" variant="outline">
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Restart Test
               </Button>
@@ -367,13 +430,16 @@ export const TypingTest = () => {
           </Card>
         )}
 
-        {/* Keyboard Shortcuts */}
         <div className="text-center text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-2">
-            <kbd className="px-2 py-1 bg-muted rounded border text-xs font-mono">Tab</kbd>
+            <kbd className="px-2 py-1 bg-muted rounded border text-xs font-mono">
+              Tab
+            </kbd>
             <span>Restart</span>
             <span className="mx-2">•</span>
-            <kbd className="px-2 py-1 bg-muted rounded border text-xs font-mono">Esc</kbd>
+            <kbd className="px-2 py-1 bg-muted rounded border text-xs font-mono">
+              Esc
+            </kbd>
             <span>Clear</span>
           </span>
         </div>
