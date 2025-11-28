@@ -29,21 +29,21 @@ This version focuses on:
 
 ---
 
-## ✨ Features
+##  Features
 
 | Feature                  | Description                              |
 | ------------------------ | ---------------------------------------- |
-| ⚡ **Instant Start**      | Test begins as soon as typing starts     |
-| ⏱ **60-Second Mode**     | Consistent time-based challenge          |
-| 📈 **Live WPM**          | Speed updates while typing               |
-| 🎯 **Accuracy Tracking** | Calculates typing precision              |
-| 🌙 **Dark UI**           | Modern, comfortable typing environment   |
-| 🔄 **Restart Test**      | Quick reset for another round            |
-| ⌨️ **Benchmark Feel**    | Inspired by Human Benchmark & Monkeytype |
+|  **Instant Start**      | Test begins as soon as typing starts     |
+|  **60-Second Mode**     | Consistent time-based challenge          |
+|  **Live WPM**          | Speed updates while typing               |
+|  **Accuracy Tracking** | Calculates typing precision              |
+|  **Dark UI**           | Modern, comfortable typing environment   |
+|  **Restart Test**      | Quick reset for another round            |
+|  **Benchmark Feel**    | Inspired by Human Benchmark & Monkeytype |
 
 ---
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 | Layer         | Tools        |
 | ------------- | ------------ |
@@ -53,3 +53,4 @@ This version focuses on:
 | UI Components | shadcn/ui    |
 
 ---
+
